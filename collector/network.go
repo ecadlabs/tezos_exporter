@@ -11,8 +11,25 @@ import (
 )
 
 var (
-	sentBytesDesc = prometheus.NewDesc("tezos_node_sent_bytes_total", "Total number of bytes sent from this node.", nil, nil)
-	recvBytesDesc = prometheus.NewDesc("tezos_node_recv_bytes_total", "Total number of bytes received by this node.", nil, nil)
+	sentBytesDesc = prometheus.NewDesc(
+		"tezos_node_sent_bytes_total",
+		"Total number of bytes sent from this node.",
+		nil,
+		nil,
+	)
+	recvBytesDesc = prometheus.NewDesc(
+		"tezos_node_recv_bytes_total",
+		"Total number of bytes received by this node.",
+		nil,
+		nil,
+	)
+
+	connsDesc = prometheus.NewDesc(
+		"tezos_node_connections",
+		"Current number of connections to/from this node.",
+		[]string{"direction", "private"},
+		nil,
+	)
 )
 
 // NetworkCollector collects metrics about a Tezos node's network properties.
@@ -53,4 +70,39 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	ch <- prometheus.MustNewConstMetric(sentBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesSent))
 	ch <- prometheus.MustNewConstMetric(recvBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesRecv))
+
+	conns, err := c.service.GetConnections(ctx)
+	if err != nil {
+		c.errors.WithLabelValues("network_stat").Add(1)
+		level.Warn(c.logger).Log("msg", "error querying /network/stat", "err", err)
+	}
+
+	connStats := map[string]map[string]int{
+		"incoming": map[string]int{
+			"false": 0,
+			"true":  0,
+		},
+		"outgoing": map[string]int{
+			"false": 0,
+			"true":  0,
+		},
+	}
+	for _, conn := range conns {
+		direction := "outgoing"
+		if conn.Incoming {
+			direction = "incoming"
+		}
+		private := "false"
+		if conn.Private {
+			private = "true"
+		}
+
+		connStats[direction][private]++
+	}
+
+	for direction, stats := range connStats {
+		for private, count := range stats {
+			ch <- prometheus.MustNewConstMetric(connsDesc, prometheus.GaugeValue, float64(count), direction, private)
+		}
+	}
 }
