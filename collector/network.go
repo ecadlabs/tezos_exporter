@@ -36,12 +36,12 @@ var (
 type NetworkCollector struct {
 	logger  log.Logger
 	errors  *prometheus.CounterVec
-	service tezos.NetworkService
+	service *tezos.Service
 	timeout time.Duration
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
-func NewNetworkCollector(logger log.Logger, errors *prometheus.CounterVec, service tezos.NetworkService, timeout time.Duration) *NetworkCollector {
+func NewNetworkCollector(logger log.Logger, errors *prometheus.CounterVec, service *tezos.Service, timeout time.Duration) *NetworkCollector {
 	errors.WithLabelValues("network").Add(0)
 
 	return &NetworkCollector{
@@ -63,7 +63,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	stats, err := c.service.GetStats(ctx)
+	stats, err := c.service.GetNetworkStats(ctx)
 	if err != nil {
 		c.errors.WithLabelValues("network_stat").Add(1)
 		level.Warn(c.logger).Log("msg", "error querying /network/stat", "err", err)
@@ -71,7 +71,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(sentBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesSent))
 	ch <- prometheus.MustNewConstMetric(recvBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesRecv))
 
-	conns, err := c.service.GetConnections(ctx)
+	conns, err := c.service.GetNetworkConnections(ctx)
 	if err != nil {
 		c.errors.WithLabelValues("network_stat").Add(1)
 		level.Warn(c.logger).Log("msg", "error querying /network/stat", "err", err)
