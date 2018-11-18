@@ -28,7 +28,7 @@ func main() {
 		level.Error(logger).Log("msg", "error initializing Tezos RPC client", "err", err)
 		os.Exit(1)
 	}
-	service := tezos.Service{Client: client}
+	service := &tezos.Service{Client: client}
 
 	errors := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "tezos_rpc_errors_total",
