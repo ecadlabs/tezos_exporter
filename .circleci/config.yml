@@ -12,22 +12,6 @@ jobs:
     - checkout
     - run: go build
 
-  docker_hub_branch:
-    docker:
-      - image: circleci/golang:1.11
-    working_directory: /go/src/github.com/ecadlabs/tezos_exporter
-
-    steps:
-    - checkout
-    - setup_remote_docker
-    - attach_workspace:
-        at: .
-    - run: docker build -t ecadlabs/tezos_exporter:$CIRCLE_BRANCH -t ecadlabs/tezos_exporter:${CIRCLE_SHA1:0:8} .
-    - run: docker images
-    - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
-    - run: docker push ecadlabs/tezos_exporter:$CIRCLE_BRANCH
-    - run: docker push ecadlabs/tezos_exporter:${CIRCLE_SHA1:0:8}
-
   docker_hub_release_tags:
     docker:
       - image: circleci/golang:1.11
@@ -39,7 +23,6 @@ jobs:
     - attach_workspace:
         at: .
     - run: docker build -t ecadlabs/tezos_exporter:$CIRCLE_TAG -t ecadlabs/tezos_exporter:latest .
-    - run: docker images
     - run: docker login -u $DOCKER_USER -p $DOCKER_PASS
     - run: docker push ecadlabs/tezos_exporter:$CIRCLE_TAG
     - run: docker push ecadlabs/tezos_exporter:latest
@@ -52,12 +35,6 @@ workflows:
     - build:
         filters:
           tags:
-            only: /.*/
-    - docker_hub_branch:
-        requires:
-          - build
-        filters:
-          branches:
             only: /.*/
     - docker_hub_release_tags:
         requires:
