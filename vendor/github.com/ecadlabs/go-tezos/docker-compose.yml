@@ -1,0 +1,14 @@
+version: '3'
+services:
+  tezos_node:
+    image: tezos/tezos:alphanet
+    command: tezos-node
+    ports:
+      - 8732:8732
+    volumes:
+      - node_data:/var/run/tezos/node
+      - client_data:/var/run/tezos/client
+
+volumes:
+  node_data:
+  client_data:
