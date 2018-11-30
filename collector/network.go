@@ -30,6 +30,12 @@ var (
 		[]string{"direction", "private"},
 		nil)
 
+	pointsDesc = prometheus.NewDesc(
+		"tezos_node_points",
+		"Stats about known network points.",
+		[]string{"trusted", "event_kind"},
+		nil)
+
 	bootstrappedDesc = prometheus.NewDesc(
 		"tezos_node_bootstrapped",
 		"Returns 1 if the node has synchronized its chain with a few peers.",
@@ -95,6 +101,29 @@ func (c *NetworkCollector) getConnStats(ctx context.Context) (map[string]map[str
 	return connStats, nil
 }
 
+func (c *NetworkCollector) getPointStats(ctx context.Context) (map[string]map[string]int, error) {
+	points, err := c.service.GetNetworkPoints(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
+	pointStats := map[string]map[string]int{
+		"false": map[string]int{},
+		"true":  map[string]int{},
+	}
+
+	for _, point := range points {
+		trusted := "false"
+		if point.Trusted {
+			trusted = "true"
+		}
+
+		pointStats[trusted][point.State.EventKind]++
+	}
+
+	return pointStats, nil
+}
+
 func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, bootstrappedTimeout)
 	defer cancel()
@@ -144,6 +173,16 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		for direction, stats := range connStats {
 			for private, count := range stats {
 				ch <- prometheus.MustNewConstMetric(connsDesc, prometheus.GaugeValue, float64(count), direction, private)
+			}
+		}
+	}
+
+	pointStats, err := c.getPointStats(ctx)
+	c.reportRPCResult("/network/points", err, ch)
+	if err == nil {
+		for trusted, stats := range pointStats {
+			for eventKind, count := range stats {
+				ch <- prometheus.MustNewConstMetric(pointsDesc, prometheus.GaugeValue, float64(count), trusted, eventKind)
 			}
 		}
 	}
