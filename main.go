@@ -16,6 +16,12 @@ import (
 
 const defaultTimeout = 5 * time.Second
 
+var rpcFailedDesc = prometheus.NewDesc(
+	"tezos_rpc_failed",
+	"A gauge that is set to 1 when a metrics collection RPC failed during the current scrape, 0 otherwise.",
+	[]string{"rpc"},
+	nil)
+
 func main() {
 	metricsAddr := flag.String("metrics-listen-addr", ":9489", "TCP address on which to serve Prometheus metrics.")
 	tezosAddr := flag.String("tezos-node-url", "http://localhost:8732", "URL of Tezos node to monitor.")
@@ -32,16 +38,19 @@ func main() {
 	}
 	service := &tezos.Service{Client: client}
 
-	errors := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "tezos_rpc_errors_total",
-		Help: "The total number of errors per RPC metric collector.",
-	}, []string{"collector"})
+	reportRPCResult := func(rpc string, err error, ch chan<- prometheus.Metric) {
+		var val float64
+		if err != nil {
+			val = 1
+		}
+		ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, rpc)
+		level.Warn(logger).Log("msg", "error querying RPC", "rpc", rpc, "err", err)
+	}
 
 	reg := prometheus.NewRegistry()
-	reg.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-	reg.Register(prometheus.NewGoCollector())
-	reg.Register(collector.NewNetworkCollector(logger, errors, service, defaultTimeout))
-	reg.Register(errors)
+	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	reg.MustRegister(prometheus.NewGoCollector())
+	reg.MustRegister(collector.NewNetworkCollector(reportRPCResult, service, defaultTimeout))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	if err := http.ListenAndServe(*metricsAddr, nil); err != nil {
