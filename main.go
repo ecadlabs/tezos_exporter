@@ -14,6 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const defaultTimeout = 5 * time.Second
+
 func main() {
 	metricsAddr := flag.String("metrics-listen-addr", ":9489", "TCP address on which to serve Prometheus metrics.")
 	tezosAddr := flag.String("tezos-node-url", "http://localhost:8732", "URL of Tezos node to monitor.")
@@ -35,12 +37,10 @@ func main() {
 		Help: "The total number of errors per RPC metric collector.",
 	}, []string{"collector"})
 
-	timeout := 600 * time.Millisecond
-
 	reg := prometheus.NewRegistry()
-	reg.Register(prometheus.NewProcessCollector(os.Getpid(), ""))
+	reg.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.Register(prometheus.NewGoCollector())
-	reg.Register(collector.NewNetworkCollector(logger, errors, service, timeout))
+	reg.Register(collector.NewNetworkCollector(logger, errors, service, defaultTimeout))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	if err := http.ListenAndServe(*metricsAddr, nil); err != nil {
