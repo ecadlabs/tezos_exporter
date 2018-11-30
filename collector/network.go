@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/ecadlabs/go-tezos"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -41,21 +39,20 @@ var (
 
 // NetworkCollector collects metrics about a Tezos node's network properties.
 type NetworkCollector struct {
-	logger  log.Logger
-	errors  *prometheus.CounterVec
-	service *tezos.Service
-	timeout time.Duration
+	reportRPCResult func(string, error, chan<- prometheus.Metric)
+	service         *tezos.Service
+	timeout         time.Duration
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
-func NewNetworkCollector(logger log.Logger, errors *prometheus.CounterVec, service *tezos.Service, timeout time.Duration) *NetworkCollector {
-	errors.WithLabelValues("network").Add(0)
-
+func NewNetworkCollector(
+	reportRPCResult func(string, error, chan<- prometheus.Metric),
+	service *tezos.Service,
+	timeout time.Duration) *NetworkCollector {
 	return &NetworkCollector{
-		logger:  logger,
-		errors:  errors,
-		service: service,
-		timeout: timeout,
+		reportRPCResult: reportRPCResult,
+		service:         service,
+		timeout:         timeout,
 	}
 }
 
@@ -134,18 +131,16 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
-	if stats, err := c.service.GetNetworkStats(ctx); err != nil {
-		c.errors.WithLabelValues("network_stat").Inc()
-		level.Warn(c.logger).Log("msg", "error querying /network/stat", "err", err)
-	} else {
+	stats, err := c.service.GetNetworkStats(ctx)
+	c.reportRPCResult("/network/stat", err, ch)
+	if err == nil {
 		ch <- prometheus.MustNewConstMetric(sentBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesSent))
 		ch <- prometheus.MustNewConstMetric(recvBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesRecv))
 	}
 
-	if connStats, err := c.getConnStats(ctx); err != nil {
-		c.errors.WithLabelValues("network_connections").Inc()
-		level.Warn(c.logger).Log("msg", "error querying /network/connections", "err", err)
-	} else {
+	connStats, err := c.getConnStats(ctx)
+	c.reportRPCResult("/network/connections", err, ch)
+	if err == nil {
 		for direction, stats := range connStats {
 			for private, count := range stats {
 				ch <- prometheus.MustNewConstMetric(connsDesc, prometheus.GaugeValue, float64(count), direction, private)
@@ -153,10 +148,9 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	if bootstrapped, err := c.getBootstrapped(ctx); err != nil {
-		c.errors.WithLabelValues("monitor_bootstrapped").Inc()
-		level.Warn(c.logger).Log("msg", "error querying /monitor/bootstrapped", "err", err)
-	} else {
+	bootstrapped, err := c.getBootstrapped(ctx)
+	c.reportRPCResult("/monitor/bootstrapped", err, ch)
+	if err == nil {
 		var v float64
 		if bootstrapped {
 			v = 1.0
