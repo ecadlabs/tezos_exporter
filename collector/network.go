@@ -30,6 +30,12 @@ var (
 		[]string{"direction", "private"},
 		nil)
 
+	peersDesc = prometheus.NewDesc(
+		"tezos_node_peers",
+		"Stats about all peers this node ever met.",
+		[]string{"trusted", "state"},
+		nil)
+
 	pointsDesc = prometheus.NewDesc(
 		"tezos_node_points",
 		"Stats about known network points.",
@@ -155,6 +161,29 @@ func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
+func (c *NetworkCollector) getPeerStats(ctx context.Context) (map[string]map[string]int, error) {
+	peers, err := c.service.GetNetworkPeers(ctx, "")
+	if err != nil {
+		return nil, err
+	}
+
+	peerStats := map[string]map[string]int{
+		"false": map[string]int{},
+		"true":  map[string]int{},
+	}
+
+	for _, peer := range peers {
+		trusted := "false"
+		if peer.Trusted {
+			trusted = "true"
+		}
+
+		peerStats[trusted][peer.State]++
+	}
+
+	return peerStats, nil
+}
+
 // Collect implements prometheus.Collector and is called by the Prometheus registry when collecting metrics.
 func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
@@ -173,6 +202,16 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		for direction, stats := range connStats {
 			for private, count := range stats {
 				ch <- prometheus.MustNewConstMetric(connsDesc, prometheus.GaugeValue, float64(count), direction, private)
+			}
+		}
+	}
+
+	peerStats, err := c.getPeerStats(ctx)
+	c.reportRPCResult("/network/peers", err, ch)
+	if err == nil {
+		for trusted, stats := range peerStats {
+			for state, count := range stats {
+				ch <- prometheus.MustNewConstMetric(peersDesc, prometheus.GaugeValue, float64(count), trusted, state)
 			}
 		}
 	}
