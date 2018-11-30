@@ -41,6 +41,7 @@ func main() {
 	reg.Register(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.Register(prometheus.NewGoCollector())
 	reg.Register(collector.NewNetworkCollector(logger, errors, service, defaultTimeout))
+	reg.Register(errors)
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	if err := http.ListenAndServe(*metricsAddr, nil); err != nil {

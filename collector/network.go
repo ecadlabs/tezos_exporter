@@ -34,7 +34,7 @@ var (
 
 	bootstrappedDesc = prometheus.NewDesc(
 		"tezos_node_bootstrapped",
-		"Returns 1 if the node have synchronized its chain with a few peers.",
+		"Returns 1 if the node has synchronized its chain with a few peers.",
 		nil,
 		nil)
 )
@@ -135,7 +135,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	defer cancel()
 
 	if stats, err := c.service.GetNetworkStats(ctx); err != nil {
-		c.errors.WithLabelValues("network_stat").Add(1)
+		c.errors.WithLabelValues("network_stat").Inc()
 		level.Warn(c.logger).Log("msg", "error querying /network/stat", "err", err)
 	} else {
 		ch <- prometheus.MustNewConstMetric(sentBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesSent))
@@ -143,7 +143,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	if connStats, err := c.getConnStats(ctx); err != nil {
-		c.errors.WithLabelValues("network_connections").Add(1)
+		c.errors.WithLabelValues("network_connections").Inc()
 		level.Warn(c.logger).Log("msg", "error querying /network/connections", "err", err)
 	} else {
 		for direction, stats := range connStats {
@@ -154,7 +154,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	if bootstrapped, err := c.getBootstrapped(ctx); err != nil {
-		c.errors.WithLabelValues("monitor_bootstrapped").Add(1)
+		c.errors.WithLabelValues("monitor_bootstrapped").Inc()
 		level.Warn(c.logger).Log("msg", "error querying /monitor/bootstrapped", "err", err)
 	} else {
 		var v float64
