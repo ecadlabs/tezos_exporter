@@ -44,7 +44,9 @@ func main() {
 			val = 1
 		}
 		ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, rpc)
-		level.Warn(logger).Log("msg", "error querying RPC", "rpc", rpc, "err", err)
+		if err != nil {
+			level.Warn(logger).Log("msg", "error querying RPC", "rpc", rpc, "err", err)
+		}
 	}
 
 	reg := prometheus.NewRegistry()
