@@ -11,11 +11,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:c5933f4924462f117a7d9fcbb1bce01fcdda73f4a4e5ec7804ebe97793a0c932"
+  digest = "1:9bb1850517cf5be1a2c36c72674409a2c208db3ded5b25bd4f44376fdabebf55"
   name = "github.com/ecadlabs/go-tezos"
   packages = ["."]
   pruneopts = "UT"
-  revision = "9ba93bc3e624fad5f0a53c7b0a17b8bcd845d042"
+  revision = "73da90a4d6f5bc639ed406d828b9d6d6b4950405"
 
 [[projects]]
   digest = "1:db2e37856e0f3e8ad322792ca2ede9bcf821f4d482ca0ef300e6a9d85776a99a"

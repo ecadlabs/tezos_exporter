@@ -25,14 +25,14 @@ type NetworkStats struct {
 
 // NetworkConnection models detailed information for one network connection.
 type NetworkConnection struct {
-	Incoming         bool             `json:"incoming"`
-	PeerID           string           `json:"peer_id"`
-	IDPoint          NetworkAddress   `json:"id_point"`
-	RemoteSocketPort uint16           `json:"remote_socket_port"`
-	Versions         []NetworkVersion `json:"versions"`
-	Private          bool             `json:"private"`
-	LocalMetadata    NetworkMetadata  `json:"local_metadata"`
-	RemoteMetadata   NetworkMetadata  `json:"remote_metadata"`
+	Incoming         bool              `json:"incoming"`
+	PeerID           string            `json:"peer_id"`
+	IDPoint          NetworkAddress    `json:"id_point"`
+	RemoteSocketPort uint16            `json:"remote_socket_port"`
+	Versions         []*NetworkVersion `json:"versions"`
+	Private          bool              `json:"private"`
+	LocalMetadata    NetworkMetadata   `json:"local_metadata"`
+	RemoteMetadata   NetworkMetadata   `json:"remote_metadata"`
 }
 
 // NetworkAddress models a point's address and port.
@@ -88,6 +88,8 @@ type NetworkPeer struct {
 	LastMiss                  *NetworkConnectionTimestamp `json:"last_miss"`
 }
 
+// networkPeerWithID is a heterogeneously encoded NetworkPeer with ID as a first array member
+// See OperationAlt for details
 type networkPeerWithID NetworkPeer
 
 func (n *networkPeerWithID) UnmarshalJSON(data []byte) error {
@@ -116,9 +118,11 @@ type NetworkPoint struct {
 	LastMiss                  time.Time         `json:"last_miss"`
 }
 
-type networkPointWithAddress NetworkPoint
+// networkPointAlt is a heterogeneously encoded NetworkPoint with address as a first array member
+// See OperationAlt for details
+type networkPointAlt NetworkPoint
 
-func (n *networkPointWithAddress) UnmarshalJSON(data []byte) error {
+func (n *networkPointAlt) UnmarshalJSON(data []byte) error {
 	return unmarshalHeterogeneousJSONArray(data, &n.Address, (*NetworkPoint)(n))
 }
 
@@ -145,6 +149,33 @@ type NetworkPointLogEntry struct {
 	Timestamp time.Time         `json:"timestamp"`
 }
 
+// MempoolOperations represents mempool operations
+type MempoolOperations struct {
+	Applied       []*Operation             `json:"applied"`
+	Refused       []*OperationWithErrorAlt `json:"refused"`
+	BranchRefused []*OperationWithErrorAlt `json:"branch_refused"`
+	BranchDelayed []*OperationWithErrorAlt `json:"branch_delayed"`
+	Unprocessed   []*OperationAlt          `json:"unprocessed"`
+}
+
+// InvalidBlock represents invalid block hash along with the errors that led to it being declared invalid
+type InvalidBlock struct {
+	Block string `json:"block"`
+	Level int    `json:"level"`
+	Error Errors `json:"error"`
+}
+
+type bigIntStr big.Int
+
+func (z *bigIntStr) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	return (*big.Int)(z).UnmarshalText([]byte(s))
+}
+
 // GetNetworkStats returns current network stats https://tezos.gitlab.io/betanet/api/rpc.html#get-network-stat
 func (s *Service) GetNetworkStats(ctx context.Context) (*NetworkStats, error) {
 	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/network/stat", nil)
@@ -153,7 +184,7 @@ func (s *Service) GetNetworkStats(ctx context.Context) (*NetworkStats, error) {
 	}
 
 	var stats NetworkStats
-	if err := s.Client.Do(req, &stats); err != nil {
+	if err = s.Client.Do(req, &stats); err != nil {
 		return nil, err
 	}
 	return &stats, err
@@ -167,7 +198,7 @@ func (s *Service) GetNetworkConnections(ctx context.Context) ([]*NetworkConnecti
 	}
 
 	var conns []*NetworkConnection
-	if err := s.Client.Do(req, &conns); err != nil {
+	if err = s.Client.Do(req, &conns); err != nil {
 		return nil, err
 	}
 	return conns, err
@@ -193,7 +224,7 @@ func (s *Service) GetNetworkPeers(ctx context.Context, filter string) ([]*Networ
 	}
 
 	var peers []*networkPeerWithID
-	if err := s.Client.Do(req, &peers); err != nil {
+	if err = s.Client.Do(req, &peers); err != nil {
 		return nil, err
 	}
 
@@ -214,7 +245,7 @@ func (s *Service) GetNetworkPeer(ctx context.Context, peerID string) (*NetworkPe
 	}
 
 	var peer NetworkPeer
-	if err := s.Client.Do(req, &peer); err != nil {
+	if err = s.Client.Do(req, &peer); err != nil {
 		return nil, err
 	}
 	peer.PeerID = peerID
@@ -259,7 +290,7 @@ func (s *Service) GetNetworkPeerBanned(ctx context.Context, peerID string) (bool
 	}
 
 	var banned bool
-	if err := s.Client.Do(req, &banned); err != nil {
+	if err = s.Client.Do(req, &banned); err != nil {
 		return false, err
 	}
 
@@ -275,14 +306,14 @@ func (s *Service) GetNetworkPeerLog(ctx context.Context, peerID string) ([]*Netw
 	}
 
 	var log []*NetworkPeerLogEntry
-	if err := s.Client.Do(req, &log); err != nil {
+	if err = s.Client.Do(req, &log); err != nil {
 		return nil, err
 	}
 
 	return log, err
 }
 
-// MonitorNetworkPeerLog monitor network events related to a given peer.
+// MonitorNetworkPeerLog monitors network events related to a given peer.
 // https://tezos.gitlab.io/mainnet/api/rpc.html#get-network-peers-peer-id-log
 func (s *Service) MonitorNetworkPeerLog(ctx context.Context, peerID string, results chan<- []*NetworkPeerLogEntry) error {
 	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/network/peers/"+peerID+"/log?monitor", nil)
@@ -312,8 +343,8 @@ func (s *Service) GetNetworkPoints(ctx context.Context, filter string) ([]*Netwo
 		return nil, err
 	}
 
-	var points []*networkPointWithAddress
-	if err := s.Client.Do(req, &points); err != nil {
+	var points []*networkPointAlt
+	if err = s.Client.Do(req, &points); err != nil {
 		return nil, err
 	}
 
@@ -334,7 +365,7 @@ func (s *Service) GetNetworkPoint(ctx context.Context, address string) (*Network
 	}
 
 	var point NetworkPoint
-	if err := s.Client.Do(req, &point); err != nil {
+	if err = s.Client.Do(req, &point); err != nil {
 		return nil, err
 	}
 	point.Address = address
@@ -405,7 +436,7 @@ func (s *Service) GetNetworkPointBanned(ctx context.Context, address string) (bo
 	}
 
 	var banned bool
-	if err := s.Client.Do(req, &banned); err != nil {
+	if err = s.Client.Do(req, &banned); err != nil {
 		return false, err
 	}
 
@@ -421,14 +452,14 @@ func (s *Service) GetNetworkPointLog(ctx context.Context, address string) ([]*Ne
 	}
 
 	var log []*NetworkPointLogEntry
-	if err := s.Client.Do(req, &log); err != nil {
+	if err = s.Client.Do(req, &log); err != nil {
 		return nil, err
 	}
 
 	return log, err
 }
 
-// MonitorNetworkPointLog monitors network events related to an `IP:addr`.
+// MonitorNetworkPointLog monitorss network events related to an `IP:addr`.
 // https://tezos.gitlab.io/mainnet/api/rpc.html#get-network-peers-peer-id-log
 func (s *Service) MonitorNetworkPointLog(ctx context.Context, address string, results chan<- []*NetworkPointLogEntry) error {
 	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/network/points/"+address+"/log?monitor", nil)
@@ -439,17 +470,6 @@ func (s *Service) MonitorNetworkPointLog(ctx context.Context, address string, re
 	return s.Client.Do(req, results)
 }
 
-type bigInt big.Int
-
-func (z *bigInt) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-
-	return (*big.Int)(z).UnmarshalText([]byte(s))
-}
-
 // GetDelegateBalance returns a delegate's balance http://tezos.gitlab.io/mainnet/api/rpc.html#get-block-id-context-delegates-pkh-balance
 func (s *Service) GetDelegateBalance(ctx context.Context, chainID string, blockID string, pkh string) (*big.Int, error) {
 	u := "/chains/" + chainID + "/blocks/" + blockID + "/context/delegates/" + pkh + "/balance"
@@ -458,7 +478,7 @@ func (s *Service) GetDelegateBalance(ctx context.Context, chainID string, blockI
 		return nil, err
 	}
 
-	var balance bigInt
+	var balance bigIntStr
 	if err := s.Client.Do(req, &balance); err != nil {
 		return nil, err
 	}
@@ -474,7 +494,7 @@ func (s *Service) GetContractBalance(ctx context.Context, chainID string, blockI
 		return nil, err
 	}
 
-	var balance bigInt
+	var balance bigIntStr
 	if err := s.Client.Do(req, &balance); err != nil {
 		return nil, err
 	}
@@ -490,4 +510,35 @@ func (s *Service) GetBootstrapped(ctx context.Context, results chan<- *Bootstrap
 	}
 
 	return s.Client.Do(req, results)
+}
+
+// GetMempoolPendingOperations returns mempool pending operations
+func (s *Service) GetMempoolPendingOperations(ctx context.Context, chainID string) (*MempoolOperations, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/mempool/pending_operations", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var ops MempoolOperations
+	if err := s.Client.Do(req, &ops); err != nil {
+		return nil, err
+	}
+
+	return &ops, nil
+}
+
+// GetInvalidBlocks lists blocks that have been declared invalid along with the errors that led to them being declared invalid.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-chains-chain-id-invalid-blocks
+func (s *Service) GetInvalidBlocks(ctx context.Context, chainID string) ([]*InvalidBlock, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/invalid_blocks", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var invalidBlocks []*InvalidBlock
+	if err := s.Client.Do(req, &invalidBlocks); err != nil {
+		return nil, err
+	}
+
+	return invalidBlocks, nil
 }

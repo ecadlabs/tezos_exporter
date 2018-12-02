@@ -19,136 +19,6 @@ const (
 	mediaType      = "application/json"
 )
 
-const (
-	// ErrorKindPermanent Tezos RPC error kind.
-	ErrorKindPermanent = "permanent"
-	// ErrorKindTemporary Tezos RPC error kind.
-	ErrorKindTemporary = "temporary"
-	// ErrorKindBranch Tezos RPC error kind.
-	ErrorKindBranch = "branch"
-)
-
-// HTTPError retains HTTP status
-type HTTPError interface {
-	error
-	Status() string  // e.g. "200 OK"
-	StatusCode() int // e.g. 200
-	Body() []byte
-}
-
-// RPCError is a Tezos RPC error as documented on http://tezos.gitlab.io/mainnet/api/errors.html.
-type RPCError interface {
-	HTTPError
-	ID() string
-	Kind() string // e.g. "permanent"
-	Raw() map[string]interface{}
-	Errors() []RPCError // returns all errors as a slice
-}
-
-type httpError struct {
-	status     string
-	statusCode int
-	body       []byte
-}
-
-func (e *httpError) Error() string {
-	return fmt.Sprintf("tezos: HTTP status %v", e.statusCode)
-}
-
-func (e *httpError) Status() string {
-	return e.status
-}
-
-func (e *httpError) StatusCode() int {
-	return e.statusCode
-}
-
-func (e *httpError) Body() []byte {
-	return e.body
-}
-
-type rpcError struct {
-	*httpError
-	id   string
-	kind string // e.g. "permanent"
-	raw  map[string]interface{}
-}
-
-func (e *rpcError) Error() string {
-	return fmt.Sprintf("tezos: RPC error (kind = %q, id = %q)", e.kind, e.id)
-}
-
-func (e *rpcError) ID() string {
-	return e.id
-}
-
-func (e *rpcError) Kind() string {
-	return e.kind
-}
-
-func (e *rpcError) Raw() map[string]interface{} {
-	return e.raw
-}
-
-func (e *rpcError) Errors() []RPCError {
-	return []RPCError{e}
-}
-
-type rpcErrors struct {
-	*httpError
-	errors []*rpcError
-}
-
-func (e *rpcErrors) Error() string {
-	if len(e.errors) == 0 {
-		return ""
-	}
-	return e.errors[0].Error()
-}
-
-func (e *rpcErrors) ID() string {
-	if len(e.errors) == 0 {
-		return ""
-	}
-	return e.errors[0].id
-}
-
-func (e *rpcErrors) Kind() string {
-	if len(e.errors) == 0 {
-		return ""
-	}
-	return e.errors[0].kind
-}
-
-func (e *rpcErrors) Raw() map[string]interface{} {
-	if len(e.errors) == 0 {
-		return nil
-	}
-	return e.errors[0].raw
-}
-
-func (e *rpcErrors) Errors() []RPCError {
-	res := make([]RPCError, len(e.errors))
-	for i := range e.errors {
-		res[i] = e.errors[i]
-	}
-	return res
-}
-
-type plainError struct {
-	*httpError
-	msg string
-}
-
-func (e *plainError) Error() string {
-	return e.msg
-}
-
-var (
-	_ RPCError = &rpcErrors{}
-	_ RPCError = &rpcError{}
-)
-
 // NewRequest creates a Tezos RPC request.
 func (c *RPCClient) NewRequest(ctx context.Context, method, urlStr string, body interface{}) (*http.Request, error) {
 	rel, err := url.Parse(urlStr)
@@ -293,59 +163,16 @@ func (c *RPCClient) Do(req *http.Request, v interface{}) (err error) {
 		return &httpErr
 	}
 
-	var raw interface{}
-	if err := json.Unmarshal(body, &raw); err != nil {
+	var errs Errors
+	if err := json.Unmarshal(body, &errs); err != nil {
 		return &plainError{&httpErr, fmt.Sprintf("tezos: error decoding RPC error: %v", err)}
 	}
 
-	// Can be an array
-	var maps []map[string]interface{}
-
-	switch e := raw.(type) {
-	case []interface{}:
-		for _, v := range e {
-			if m, ok := v.(map[string]interface{}); ok {
-				maps = append(maps, m)
-			}
-		}
-
-	case map[string]interface{}:
-		maps = []map[string]interface{}{e}
-
-	default:
-		return &plainError{&httpErr, "tezos: error decoding RPC error"}
-	}
-
-	if len(maps) == 0 {
+	if len(errs) == 0 {
 		return &plainError{&httpErr, "tezos: empty error response"}
 	}
 
-	errs := make([]*rpcError, len(maps))
-
-	for i, m := range maps {
-		errID, ok := m["id"].(string)
-		if !ok {
-			return &plainError{&httpErr, "tezos: error decoding RPC error"}
-		}
-
-		errKind, ok := m["kind"].(string)
-		if !ok {
-			return &plainError{&httpErr, "tezos: error decoding RPC error"}
-		}
-
-		errs[i] = &rpcError{
-			httpError: &httpErr,
-			id:        errID,
-			kind:      errKind,
-			raw:       m,
-		}
-	}
-
-	if len(errs) == 1 {
-		return errs[0]
-	}
-
-	return &rpcErrors{
+	return &rpcError{
 		httpError: &httpErr,
 		errors:    errs,
 	}
