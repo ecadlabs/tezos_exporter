@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const defaultTimeout = 5 * time.Second
+const defaultTimeout = 10 * time.Second
 
 var rpcFailedDesc = prometheus.NewDesc(
 	"tezos_rpc_failed",
