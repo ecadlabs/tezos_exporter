@@ -25,6 +25,7 @@ var rpcFailedDesc = prometheus.NewDesc(
 func main() {
 	metricsAddr := flag.String("metrics-listen-addr", ":9489", "TCP address on which to serve Prometheus metrics.")
 	tezosAddr := flag.String("tezos-node-url", "http://localhost:8732", "URL of Tezos node to monitor.")
+	chainID := flag.String("chain-id", "main", "ID of chain about which to report chain-related stats.")
 
 	flag.Parse()
 
@@ -52,7 +53,7 @@ func main() {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.MustRegister(prometheus.NewGoCollector())
-	reg.MustRegister(collector.NewNetworkCollector(reportRPCResult, service, defaultTimeout))
+	reg.MustRegister(collector.NewNetworkCollector(reportRPCResult, service, defaultTimeout, *chainID))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	if err := http.ListenAndServe(*metricsAddr, nil); err != nil {

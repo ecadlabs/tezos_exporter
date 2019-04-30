@@ -47,6 +47,12 @@ var (
 		"Returns 1 if the node has synchronized its chain with a few peers.",
 		nil,
 		nil)
+
+	mempoolDesc = prometheus.NewDesc(
+		"tezos_node_mempool_operations",
+		"The current number of mempool operations.",
+		[]string{"pool", "proto", "kind"},
+		nil)
 )
 
 // NetworkCollector collects metrics about a Tezos node's network properties.
@@ -54,17 +60,20 @@ type NetworkCollector struct {
 	reportRPCResult func(string, error, chan<- prometheus.Metric)
 	service         *tezos.Service
 	timeout         time.Duration
+	chainID         string
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
 func NewNetworkCollector(
 	reportRPCResult func(string, error, chan<- prometheus.Metric),
 	service *tezos.Service,
-	timeout time.Duration) *NetworkCollector {
+	timeout time.Duration,
+	chainID string) *NetworkCollector {
 	return &NetworkCollector{
 		reportRPCResult: reportRPCResult,
 		service:         service,
 		timeout:         timeout,
+		chainID:         chainID,
 	}
 }
 
@@ -184,6 +193,50 @@ func (c *NetworkCollector) getPeerStats(ctx context.Context) (map[string]map[str
 	return peerStats, nil
 }
 
+func (c *NetworkCollector) getMempoolStats(ctx context.Context) (map[string]map[string]map[string]int, error) {
+	buildStats := func(ops []*tezos.Operation) map[string]map[string]int {
+		stats := map[string]map[string]int{}
+		for _, op := range ops {
+			if _, ok := stats[op.Protocol]; !ok {
+				stats[op.Protocol] = map[string]int{}
+			}
+			for _, contents := range op.Contents {
+				stats[op.Protocol][contents.OperationElemKind()]++
+			}
+		}
+		return stats
+	}
+
+	opsFromOpsWithErrorAlt := func(in []*tezos.OperationWithErrorAlt) []*tezos.Operation {
+		out := make([]*tezos.Operation, len(in))
+		for i, op := range in {
+			out[i] = &op.Operation
+		}
+		return out
+	}
+
+	opsFromOpsAlt := func(in []*tezos.OperationAlt) []*tezos.Operation {
+		out := make([]*tezos.Operation, len(in))
+		for i, op := range in {
+			out[i] = (*tezos.Operation)(op)
+		}
+		return out
+	}
+
+	ops, err := c.service.GetMempoolPendingOperations(ctx, c.chainID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]map[string]map[string]int{
+		"applied":        buildStats(ops.Applied),
+		"branch_delayed": buildStats(opsFromOpsWithErrorAlt(ops.BranchDelayed)),
+		"branch_refused": buildStats(opsFromOpsWithErrorAlt(ops.BranchRefused)),
+		"refused":        buildStats(opsFromOpsWithErrorAlt(ops.Refused)),
+		"unprocessed":    buildStats(opsFromOpsAlt(ops.Unprocessed)),
+	}, nil
+}
+
 // Collect implements prometheus.Collector and is called by the Prometheus registry when collecting metrics.
 func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
@@ -234,5 +287,17 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 			v = 1.0
 		}
 		ch <- prometheus.MustNewConstMetric(bootstrappedDesc, prometheus.GaugeValue, v)
+	}
+
+	mempoolStats, err := c.getMempoolStats(ctx)
+	c.reportRPCResult("/chains/"+c.chainID+"/mempool/pending_operations", err, ch)
+	if err == nil {
+		for pool, stats := range mempoolStats {
+			for proto, protoStats := range stats {
+				for kind, count := range protoStats {
+					ch <- prometheus.MustNewConstMetric(mempoolDesc, prometheus.GaugeValue, float64(count), pool, proto, kind)
+				}
+			}
+		}
 	}
 }
