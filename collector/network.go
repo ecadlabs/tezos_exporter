@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/ecadlabs/go-tezos"
@@ -53,27 +54,30 @@ var (
 		"The current number of mempool operations.",
 		[]string{"pool", "proto", "kind"},
 		nil)
+
+	rpcFailedDesc = prometheus.NewDesc(
+		"tezos_rpc_failed",
+		"A gauge that is set to 1 when a metrics collection RPC failed during the current scrape, 0 otherwise.",
+		[]string{"rpc"},
+		nil)
 )
 
 // NetworkCollector collects metrics about a Tezos node's network properties.
 type NetworkCollector struct {
-	reportRPCResult func(string, error, chan<- prometheus.Metric)
-	service         *tezos.Service
-	timeout         time.Duration
-	chainID         string
+	service *tezos.Service
+	timeout time.Duration
+	chainID string
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
 func NewNetworkCollector(
-	reportRPCResult func(string, error, chan<- prometheus.Metric),
 	service *tezos.Service,
 	timeout time.Duration,
 	chainID string) *NetworkCollector {
 	return &NetworkCollector{
-		reportRPCResult: reportRPCResult,
-		service:         service,
-		timeout:         timeout,
-		chainID:         chainID,
+		service: service,
+		timeout: timeout,
+		chainID: chainID,
 	}
 }
 
@@ -83,8 +87,8 @@ func (c *NetworkCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- recvBytesDesc
 }
 
-func (c *NetworkCollector) getConnStats(ctx context.Context) (map[string]map[string]int, error) {
-	conns, err := c.service.GetNetworkConnections(ctx)
+func getConnStats(ctx context.Context, service *tezos.Service) (map[string]map[string]int, error) {
+	conns, err := service.GetNetworkConnections(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +120,8 @@ func (c *NetworkCollector) getConnStats(ctx context.Context) (map[string]map[str
 	return connStats, nil
 }
 
-func (c *NetworkCollector) getPointStats(ctx context.Context) (map[string]map[string]int, error) {
-	points, err := c.service.GetNetworkPoints(ctx, "")
+func getPointStats(ctx context.Context, service *tezos.Service) (map[string]map[string]int, error) {
+	points, err := service.GetNetworkPoints(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +143,7 @@ func (c *NetworkCollector) getPointStats(ctx context.Context) (map[string]map[st
 	return pointStats, nil
 }
 
-func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
+func getBootstrapped(ctx context.Context, service *tezos.Service) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, bootstrappedTimeout)
 	defer cancel()
 
@@ -147,7 +151,7 @@ func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
 	var err error
 
 	go func() {
-		err = c.service.GetBootstrapped(ctx, ch)
+		err = service.GetBootstrapped(ctx, ch)
 		close(ch)
 	}()
 
@@ -170,8 +174,8 @@ func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (c *NetworkCollector) getPeerStats(ctx context.Context) (map[string]map[string]int, error) {
-	peers, err := c.service.GetNetworkPeers(ctx, "")
+func getPeerStats(ctx context.Context, service *tezos.Service) (map[string]map[string]int, error) {
+	peers, err := service.GetNetworkPeers(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +197,7 @@ func (c *NetworkCollector) getPeerStats(ctx context.Context) (map[string]map[str
 	return peerStats, nil
 }
 
-func (c *NetworkCollector) getMempoolStats(ctx context.Context) (map[string]map[string]map[string]int, error) {
+func getMempoolStats(ctx context.Context, service *tezos.Service, chainID string) (map[string]map[string]map[string]int, error) {
 	buildStats := func(ops []*tezos.Operation) map[string]map[string]int {
 		stats := map[string]map[string]int{}
 		for _, op := range ops {
@@ -223,7 +227,7 @@ func (c *NetworkCollector) getMempoolStats(ctx context.Context) (map[string]map[
 		return out
 	}
 
-	ops, err := c.service.GetMempoolPendingOperations(ctx, c.chainID)
+	ops, err := service.GetMempoolPendingOperations(ctx, chainID)
 	if err != nil {
 		return nil, err
 	}
@@ -239,18 +243,28 @@ func (c *NetworkCollector) getMempoolStats(ctx context.Context) (map[string]map[
 
 // Collect implements prometheus.Collector and is called by the Prometheus registry when collecting metrics.
 func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
+	client := *c.service.Client
+	client.RPCStatusCallback = func(req *http.Request, status int, duration time.Duration, err error) {
+		var val float64
+		if err != nil {
+			val = 1
+		}
+		ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, req.URL.Path)
+	}
+
+	srv := *c.service
+	srv.Client = &client
+
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
 	stats, err := c.service.GetNetworkStats(ctx)
-	c.reportRPCResult("/network/stat", err, ch)
 	if err == nil {
 		ch <- prometheus.MustNewConstMetric(sentBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesSent))
 		ch <- prometheus.MustNewConstMetric(recvBytesDesc, prometheus.CounterValue, float64(stats.TotalBytesRecv))
 	}
 
-	connStats, err := c.getConnStats(ctx)
-	c.reportRPCResult("/network/connections", err, ch)
+	connStats, err := getConnStats(ctx, &srv)
 	if err == nil {
 		for direction, stats := range connStats {
 			for private, count := range stats {
@@ -259,8 +273,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	peerStats, err := c.getPeerStats(ctx)
-	c.reportRPCResult("/network/peers", err, ch)
+	peerStats, err := getPeerStats(ctx, &srv)
 	if err == nil {
 		for trusted, stats := range peerStats {
 			for state, count := range stats {
@@ -269,8 +282,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	pointStats, err := c.getPointStats(ctx)
-	c.reportRPCResult("/network/points", err, ch)
+	pointStats, err := getPointStats(ctx, &srv)
 	if err == nil {
 		for trusted, stats := range pointStats {
 			for eventKind, count := range stats {
@@ -279,8 +291,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 
-	bootstrapped, err := c.getBootstrapped(ctx)
-	c.reportRPCResult("/monitor/bootstrapped", err, ch)
+	bootstrapped, err := getBootstrapped(ctx, &srv)
 	if err == nil {
 		var v float64
 		if bootstrapped {
@@ -289,8 +300,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(bootstrappedDesc, prometheus.GaugeValue, v)
 	}
 
-	mempoolStats, err := c.getMempoolStats(ctx)
-	c.reportRPCResult("/chains/"+c.chainID+"/mempool/pending_operations", err, ch)
+	mempoolStats, err := getMempoolStats(ctx, &srv, c.chainID)
 	if err == nil {
 		for pool, stats := range mempoolStats {
 			for proto, protoStats := range stats {

@@ -2,7 +2,6 @@ package tezos
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -165,15 +164,21 @@ type InvalidBlock struct {
 	Error Errors `json:"error"`
 }
 
+type proposalsRPCResponse = [][]interface{}
+
+// Just suppress UnmarshalJSON
 type bigIntStr big.Int
 
-func (z *bigIntStr) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
+func (z *bigIntStr) UnmarshalText(data []byte) error {
+	return (*big.Int)(z).UnmarshalText(data)
+}
 
-	return (*big.Int)(z).UnmarshalText([]byte(s))
+func (z *bigIntStr) MarshalJSON() ([]byte, error) {
+	return (*big.Int)(z).MarshalText()
+}
+
+func (z *bigIntStr) Int64() int64 {
+	return (*big.Int)(z).Int64()
 }
 
 // GetNetworkStats returns current network stats https://tezos.gitlab.io/betanet/api/rpc.html#get-network-stat
@@ -459,7 +464,7 @@ func (s *Service) GetNetworkPointLog(ctx context.Context, address string) ([]*Ne
 	return log, err
 }
 
-// MonitorNetworkPointLog monitorss network events related to an `IP:addr`.
+// MonitorNetworkPointLog monitors network events related to an `IP:addr`.
 // https://tezos.gitlab.io/mainnet/api/rpc.html#get-network-peers-peer-id-log
 func (s *Service) MonitorNetworkPointLog(ctx context.Context, address string, results chan<- []*NetworkPointLogEntry) error {
 	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/network/points/"+address+"/log?monitor", nil)
@@ -512,6 +517,16 @@ func (s *Service) GetBootstrapped(ctx context.Context, results chan<- *Bootstrap
 	return s.Client.Do(req, results)
 }
 
+// GetMonitorHeads reads from the heads blocks stream https://tezos.gitlab.io/mainnet/api/rpc.html#get-monitor-heads-chain-id
+func (s *Service) GetMonitorHeads(ctx context.Context, chainID string, results chan<- *MonitorBlock) error {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/monitor/heads/"+chainID, nil)
+	if err != nil {
+		return err
+	}
+
+	return s.Client.Do(req, results)
+}
+
 // GetMempoolPendingOperations returns mempool pending operations
 func (s *Service) GetMempoolPendingOperations(ctx context.Context, chainID string) (*MempoolOperations, error) {
 	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/mempool/pending_operations", nil)
@@ -525,6 +540,21 @@ func (s *Service) GetMempoolPendingOperations(ctx context.Context, chainID strin
 	}
 
 	return &ops, nil
+}
+
+// MonitorMempoolOperations monitors mempool pending operations.
+// The connection is closed after every new block.
+func (s *Service) MonitorMempoolOperations(ctx context.Context, chainID, filter string, results chan<- []*Operation) error {
+	if filter == "" {
+		filter = "applied"
+	}
+
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/mempool/monitor_operations?"+filter, nil)
+	if err != nil {
+		return err
+	}
+
+	return s.Client.Do(req, results)
 }
 
 // GetInvalidBlocks lists blocks that have been declared invalid along with the errors that led to them being declared invalid.
@@ -541,4 +571,153 @@ func (s *Service) GetInvalidBlocks(ctx context.Context, chainID string) ([]*Inva
 	}
 
 	return invalidBlocks, nil
+}
+
+// GetBlock returns information about a Tezos block
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id
+func (s *Service) GetBlock(ctx context.Context, chainID, blockID string) (*Block, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var block Block
+	if err := s.Client.Do(req, &block); err != nil {
+		return nil, err
+	}
+
+	return &block, nil
+}
+
+// GetBallotList returns ballots casted so far during a voting period.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-ballot-list
+func (s *Service) GetBallotList(ctx context.Context, chainID, blockID string) ([]*Ballot, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/ballot_list", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var ballots []*Ballot
+	if err := s.Client.Do(req, &ballots); err != nil {
+		return nil, err
+	}
+
+	return ballots, nil
+}
+
+// GetBallots returns sum of ballots casted so far during a voting period.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-ballots
+func (s *Service) GetBallots(ctx context.Context, chainID, blockID string) (*Ballots, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/ballots", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var ballots Ballots
+	if err := s.Client.Do(req, &ballots); err != nil {
+		return nil, err
+	}
+
+	return &ballots, nil
+}
+
+// GetBallotListings returns a list of delegates with their voting weight, in number of rolls.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-listings
+func (s *Service) GetBallotListings(ctx context.Context, chainID, blockID string) ([]*BallotListing, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/listings", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var listings []*BallotListing
+	if err := s.Client.Do(req, &listings); err != nil {
+		return nil, err
+	}
+
+	return listings, nil
+}
+
+// GetProposals returns a list of proposals with number of supporters.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-proposals
+func (s *Service) GetProposals(ctx context.Context, chainID, blockID string) ([]*Proposal, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/proposals", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var proposalsResp proposalsRPCResponse
+	if err := s.Client.Do(req, &proposalsResp); err != nil {
+		return nil, err
+	}
+
+	proposals := make([]*Proposal, len(proposalsResp))
+
+	for i, proposalResp := range proposalsResp {
+		if len(proposalResp) == 2 {
+			proposal := &Proposal{}
+			if propHash, ok := proposalResp[0].(string); ok {
+				proposal.ProposalHash = propHash
+			} else {
+				return nil, fmt.Errorf("Malformed request ProposalHash was expected to be a string but got: %v", proposalResp[0])
+			}
+			if supporters, ok := proposalResp[1].(float64); ok {
+				proposal.SupporterCount = int(supporters)
+			} else {
+				return nil, fmt.Errorf("Malformed request SupporterCount was expected to be a float but got: %v", proposalResp[1])
+			}
+			proposals[i] = proposal
+		} else {
+			return nil, fmt.Errorf("Malformed request Proposal is expected to be tuple of size 2")
+		}
+	}
+
+	return proposals, nil
+}
+
+// GetCurrentProposals returns the current proposal under evaluation.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-current-proposal
+func (s *Service) GetCurrentProposals(ctx context.Context, chainID, blockID string) (string, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/current_proposal", nil)
+	if err != nil {
+		return "", err
+	}
+
+	var currentProposal string
+	if err := s.Client.Do(req, &currentProposal); err != nil {
+		return "", err
+	}
+
+	return currentProposal, nil
+}
+
+// GetCurrentQuorum returns the current expected quorum.
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-current-quorum
+func (s *Service) GetCurrentQuorum(ctx context.Context, chainID, blockID string) (int, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/current_quorum", nil)
+	if err != nil {
+		return -1, err
+	}
+
+	var currentQuorum int
+	if err := s.Client.Do(req, &currentQuorum); err != nil {
+		return -1, err
+	}
+
+	return currentQuorum, nil
+}
+
+// GetCurrentPeriodKind returns the current period kind
+// https://tezos.gitlab.io/alphanet/api/rpc.html#get-block-id-votes-current-period-kind
+func (s *Service) GetCurrentPeriodKind(ctx context.Context, chainID, blockID string) (PeriodKind, error) {
+	req, err := s.Client.NewRequest(ctx, http.MethodGet, "/chains/"+chainID+"/blocks/"+blockID+"/votes/current_period_kind", nil)
+	if err != nil {
+		return "", err
+	}
+
+	var periodKind PeriodKind
+	if err := s.Client.Do(req, &periodKind); err != nil {
+		return "", err
+	}
+
+	return periodKind, nil
 }

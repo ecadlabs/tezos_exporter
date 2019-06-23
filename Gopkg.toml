@@ -26,7 +26,7 @@
 
 
 [[constraint]]
-  branch = "master"
+  branch = "monitor-mempool-operations"
   name = "github.com/ecadlabs/go-tezos"
 
 [[constraint]]
