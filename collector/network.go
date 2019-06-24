@@ -84,6 +84,10 @@ func NewNetworkCollector(service *tezos.Service, timeout time.Duration, chainID 
 func (c *NetworkCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- sentBytesDesc
 	ch <- recvBytesDesc
+	ch <- connsDesc
+	ch <- peersDesc
+	ch <- pointsDesc
+	ch <- bootstrappedDesc
 }
 
 func getConnStats(ctx context.Context, service *tezos.Service) (map[string]map[string]int, error) {
