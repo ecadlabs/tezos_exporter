@@ -10,12 +10,12 @@
   version = "v1.0.0"
 
 [[projects]]
-  branch = "monitor-mempool-operations"
+  branch = "master"
   digest = "1:ed4fa2fe2ea95f23e336eb44796e971f5bd285e879dee6f9bee6067604904431"
   name = "github.com/ecadlabs/go-tezos"
   packages = ["."]
   pruneopts = "UT"
-  revision = "fbbb6f7a57d122f85ca042752a4edd5ba8156ebc"
+  revision = "c54bb6267acfb8710eda352420695600f78a38d6"
 
 [[projects]]
   digest = "1:db2e37856e0f3e8ad322792ca2ede9bcf821f4d482ca0ef300e6a9d85776a99a"
