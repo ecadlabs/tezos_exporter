@@ -38,6 +38,12 @@ func main() {
 	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.MustRegister(prometheus.NewGoCollector())
 	reg.MustRegister(collector.NewNetworkCollector(service, defaultTimeout, *chainID))
+	reg.MustRegister(collector.NewMempoolOperationsCollectorCollector(service, *chainID, []string{
+		"applied",
+		"branch_refused",
+		"refused",
+		"branch_delayed",
+	}))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	if err := http.ListenAndServe(*metricsAddr, nil); err != nil {

@@ -63,6 +63,8 @@ type RPCClient struct {
 	UserAgent string
 	// Optional callback for metrics.
 	RPCStatusCallback func(req *http.Request, status int, duration time.Duration, err error)
+	// Optional callback for metrics.
+	RPCHeaderCallback func(req *http.Request, resp *http.Response, duration time.Duration)
 }
 
 // NewRPCClient returns a new Tezos RPC client.
@@ -133,6 +135,10 @@ func (c *RPCClient) Do(req *http.Request, v interface{}) (err error) {
 	timestamp := time.Now()
 
 	resp, err := c.Client.Do(req)
+	if c.RPCHeaderCallback != nil {
+		duration := time.Since(timestamp)
+		c.RPCHeaderCallback(req, resp, duration)
+	}
 
 	if c.RPCStatusCallback != nil {
 		defer func() {

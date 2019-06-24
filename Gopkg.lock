@@ -11,11 +11,11 @@
 
 [[projects]]
   branch = "monitor-mempool-operations"
-  digest = "1:3c7349246af8fcbaccd2f7fb8c6b3ffefe8e270d11606b4dd512289147deecfe"
+  digest = "1:ed4fa2fe2ea95f23e336eb44796e971f5bd285e879dee6f9bee6067604904431"
   name = "github.com/ecadlabs/go-tezos"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e92de97b5b89346b71af72e79df4a539f1932305"
+  revision = "fbbb6f7a57d122f85ca042752a4edd5ba8156ebc"
 
 [[projects]]
   digest = "1:db2e37856e0f3e8ad322792ca2ede9bcf821f4d482ca0ef300e6a9d85776a99a"
@@ -117,7 +117,7 @@
   name = "golang.org/x/sys"
   packages = ["windows"]
   pruneopts = "UT"
-  revision = "d432491b91382bba9c2a91776aa47c9430183a6f"
+  revision = "c5567b49c5d04a5f83870795b8c0e2df43a8ce32"
 
 [solve-meta]
   analyzer-name = "dep"

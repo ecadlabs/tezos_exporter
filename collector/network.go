@@ -49,11 +49,13 @@ var (
 		nil,
 		nil)
 
-	mempoolDesc = prometheus.NewDesc(
-		"tezos_node_mempool_operations",
-		"The current number of mempool operations.",
-		[]string{"pool", "proto", "kind"},
-		nil)
+	/*
+		mempoolDesc = prometheus.NewDesc(
+			"tezos_node_mempool_operations",
+			"The current number of mempool operations.",
+			[]string{"pool", "proto", "kind"},
+			nil)
+	*/
 
 	rpcFailedDesc = prometheus.NewDesc(
 		"tezos_rpc_failed",
@@ -70,10 +72,7 @@ type NetworkCollector struct {
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
-func NewNetworkCollector(
-	service *tezos.Service,
-	timeout time.Duration,
-	chainID string) *NetworkCollector {
+func NewNetworkCollector(service *tezos.Service, timeout time.Duration, chainID string) *NetworkCollector {
 	return &NetworkCollector{
 		service: service,
 		timeout: timeout,
@@ -197,6 +196,7 @@ func getPeerStats(ctx context.Context, service *tezos.Service) (map[string]map[s
 	return peerStats, nil
 }
 
+/*
 func getMempoolStats(ctx context.Context, service *tezos.Service, chainID string) (map[string]map[string]map[string]int, error) {
 	buildStats := func(ops []*tezos.Operation) map[string]map[string]int {
 		stats := map[string]map[string]int{}
@@ -240,6 +240,7 @@ func getMempoolStats(ctx context.Context, service *tezos.Service, chainID string
 		"unprocessed":    buildStats(opsFromOpsAlt(ops.Unprocessed)),
 	}, nil
 }
+*/
 
 // Collect implements prometheus.Collector and is called by the Prometheus registry when collecting metrics.
 func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
@@ -300,14 +301,16 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		ch <- prometheus.MustNewConstMetric(bootstrappedDesc, prometheus.GaugeValue, v)
 	}
 
-	mempoolStats, err := getMempoolStats(ctx, &srv, c.chainID)
-	if err == nil {
-		for pool, stats := range mempoolStats {
-			for proto, protoStats := range stats {
-				for kind, count := range protoStats {
-					ch <- prometheus.MustNewConstMetric(mempoolDesc, prometheus.GaugeValue, float64(count), pool, proto, kind)
+	/*
+		mempoolStats, err := getMempoolStats(ctx, &srv, c.chainID)
+		if err == nil {
+			for pool, stats := range mempoolStats {
+				for proto, protoStats := range stats {
+					for kind, count := range protoStats {
+						ch <- prometheus.MustNewConstMetric(mempoolDesc, prometheus.GaugeValue, float64(count), pool, proto, kind)
+					}
 				}
 			}
 		}
-	}
+	*/
 }
