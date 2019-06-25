@@ -49,14 +49,6 @@ var (
 		nil,
 		nil)
 
-	/*
-		mempoolDesc = prometheus.NewDesc(
-			"tezos_node_mempool_operations",
-			"The current number of mempool operations.",
-			[]string{"pool", "proto", "kind"},
-			nil)
-	*/
-
 	rpcFailedDesc = prometheus.NewDesc(
 		"tezos_rpc_failed",
 		"A gauge that is set to 1 when a metrics collection RPC failed during the current scrape, 0 otherwise.",
@@ -200,52 +192,6 @@ func getPeerStats(ctx context.Context, service *tezos.Service) (map[string]map[s
 	return peerStats, nil
 }
 
-/*
-func getMempoolStats(ctx context.Context, service *tezos.Service, chainID string) (map[string]map[string]map[string]int, error) {
-	buildStats := func(ops []*tezos.Operation) map[string]map[string]int {
-		stats := map[string]map[string]int{}
-		for _, op := range ops {
-			if _, ok := stats[op.Protocol]; !ok {
-				stats[op.Protocol] = map[string]int{}
-			}
-			for _, contents := range op.Contents {
-				stats[op.Protocol][contents.OperationElemKind()]++
-			}
-		}
-		return stats
-	}
-
-	opsFromOpsWithErrorAlt := func(in []*tezos.OperationWithErrorAlt) []*tezos.Operation {
-		out := make([]*tezos.Operation, len(in))
-		for i, op := range in {
-			out[i] = &op.Operation
-		}
-		return out
-	}
-
-	opsFromOpsAlt := func(in []*tezos.OperationAlt) []*tezos.Operation {
-		out := make([]*tezos.Operation, len(in))
-		for i, op := range in {
-			out[i] = (*tezos.Operation)(op)
-		}
-		return out
-	}
-
-	ops, err := service.GetMempoolPendingOperations(ctx, chainID)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]map[string]map[string]int{
-		"applied":        buildStats(ops.Applied),
-		"branch_delayed": buildStats(opsFromOpsWithErrorAlt(ops.BranchDelayed)),
-		"branch_refused": buildStats(opsFromOpsWithErrorAlt(ops.BranchRefused)),
-		"refused":        buildStats(opsFromOpsWithErrorAlt(ops.Refused)),
-		"unprocessed":    buildStats(opsFromOpsAlt(ops.Unprocessed)),
-	}, nil
-}
-*/
-
 // Collect implements prometheus.Collector and is called by the Prometheus registry when collecting metrics.
 func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	client := *c.service.Client
@@ -304,17 +250,4 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 		ch <- prometheus.MustNewConstMetric(bootstrappedDesc, prometheus.GaugeValue, v)
 	}
-
-	/*
-		mempoolStats, err := getMempoolStats(ctx, &srv, c.chainID)
-		if err == nil {
-			for pool, stats := range mempoolStats {
-				for proto, protoStats := range stats {
-					for kind, count := range protoStats {
-						ch <- prometheus.MustNewConstMetric(mempoolDesc, prometheus.GaugeValue, float64(count), pool, proto, kind)
-					}
-				}
-			}
-		}
-	*/
 }
