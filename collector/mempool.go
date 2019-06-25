@@ -55,24 +55,24 @@ func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID stri
 			[]string{"pool", "proto", "kind"},
 		),
 		rpcTotalHist: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "tezos_rpc_mempool_monitor_connection_total_duration_milliseconds",
+			Name:    "tezos_rpc_mempool_monitor_connection_total_duration_seconds",
 			Help:    "The total life time of the mempool monitir RPC connection.",
-			Buckets: prometheus.ExponentialBuckets(250, 2, 10),
+			Buckets: prometheus.ExponentialBuckets(0.25, 2, 12),
 		}),
 		rpcConnectHist: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "tezos_rpc_mempool_monitor_connection_connect_duration_milliseconds",
+			Name:    "tezos_rpc_mempool_monitor_connection_connect_duration_seconds",
 			Help:    "Mempool monitor (re)connection duration (time until HTTP header arrives).",
-			Buckets: prometheus.ExponentialBuckets(250, 2, 10),
+			Buckets: prometheus.ExponentialBuckets(0.25, 2, 12),
 		}),
 		chainID: chainID,
 	}
 
 	client := *service.Client
 	client.RPCStatusCallback = func(req *http.Request, status int, duration time.Duration, err error) {
-		c.rpcTotalHist.Observe(float64(duration / time.Millisecond))
+		c.rpcTotalHist.Observe(float64(duration / time.Second))
 	}
 	client.RPCHeaderCallback = func(req *http.Request, resp *http.Response, duration time.Duration) {
-		c.rpcConnectHist.Observe(float64(duration / time.Millisecond))
+		c.rpcConnectHist.Observe(float64(duration / time.Second))
 	}
 
 	srv := *service
