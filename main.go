@@ -14,8 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const defaultTimeout = 5 * time.Second
-
 var rpcFailedDesc = prometheus.NewDesc(
 	"tezos_rpc_failed",
 	"A gauge that is set to 1 when a metrics collection RPC failed during the current scrape, 0 otherwise.",
@@ -26,6 +24,7 @@ func main() {
 	metricsAddr := flag.String("metrics-listen-addr", ":9489", "TCP address on which to serve Prometheus metrics.")
 	tezosAddr := flag.String("tezos-node-url", "http://localhost:8732", "URL of Tezos node to monitor.")
 	chainID := flag.String("chain-id", "main", "ID of chain about which to report chain-related stats.")
+	rpcTimeout := flag.Duration("rpc-timeout", 10*time.Second, "Timeout for connecting to tezos RPCs")
 
 	flag.Parse()
 
@@ -53,9 +52,12 @@ func main() {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.MustRegister(prometheus.NewGoCollector())
-	reg.MustRegister(collector.NewNetworkCollector(reportRPCResult, service, defaultTimeout, *chainID))
+	reg.MustRegister(collector.NewNetworkCollector(reportRPCResult, service, *rpcTimeout, *chainID))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+
+	level.Info(logger).Log("msg", "tezos_exporter starting...", "address", metricsAddr)
+
 	if err := http.ListenAndServe(*metricsAddr, nil); err != nil {
 		level.Error(logger).Log("msg", "error starting webserver", "err", err)
 		os.Exit(1)
