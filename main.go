@@ -36,6 +36,7 @@ func main() {
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.MustRegister(prometheus.NewGoCollector())
+	reg.MustRegister(prometheus.NewBuildInfoCollector())
 	reg.MustRegister(collector.NewNetworkCollector(service, *rpcTimeout, *chainID))
 	reg.MustRegister(collector.NewMempoolOperationsCollectorCollector(service, *chainID, []string{
 		"applied",
