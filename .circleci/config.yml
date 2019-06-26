@@ -6,7 +6,7 @@ jobs:
   build:
     docker:
       - image: circleci/golang:1.12
-    working_directory: /tezos_exporter
+    working_directory: ~/tezos_exporter
 
     steps:
     - checkout
@@ -16,7 +16,7 @@ jobs:
   docker_hub_release_tags:
     docker:
       - image: circleci/golang:1.12
-    working_directory: /tezos_exporter
+    working_directory: ~/tezos_exporter
 
     steps:
     - checkout
