@@ -2,6 +2,9 @@
 FROM golang:alpine AS build-env
 WORKDIR  /go/src/github.com/ecadlabs/tezos_exporter
 ADD . .
+ENV GO111MODULE=on
+RUN apk --no-cache add git
+RUN go get -d ./...
 RUN go build
 
 # final stage
