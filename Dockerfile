@@ -1,5 +1,5 @@
 # build stage
-FROM golang:alpine AS build-env
+FROM golang:1.12-alpine AS build-env
 WORKDIR  /tezos_exporter
 ADD . .
 RUN apk --no-cache add git
