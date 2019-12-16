@@ -14,12 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-var rpcFailedDesc = prometheus.NewDesc(
-	"tezos_rpc_failed",
-	"A gauge that is set to 1 when a metrics collection RPC failed during the current scrape, 0 otherwise.",
-	[]string{"rpc"},
-	nil)
-
 func main() {
 	metricsAddr := flag.String("metrics-listen-addr", ":9489", "TCP address on which to serve Prometheus metrics.")
 	tezosAddr := flag.String("tezos-node-url", "http://localhost:8732", "URL of Tezos node to monitor.")
@@ -36,23 +30,20 @@ func main() {
 		level.Error(logger).Log("msg", "error initializing Tezos RPC client", "err", err)
 		os.Exit(1)
 	}
-	service := &tezos.Service{Client: client}
 
-	reportRPCResult := func(rpc string, err error, ch chan<- prometheus.Metric) {
-		var val float64
-		if err != nil {
-			val = 1
-		}
-		ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, rpc)
-		if err != nil {
-			level.Warn(logger).Log("msg", "error querying RPC", "rpc", rpc, "err", err)
-		}
-	}
+	service := &tezos.Service{Client: client}
 
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.MustRegister(prometheus.NewGoCollector())
-	reg.MustRegister(collector.NewNetworkCollector(reportRPCResult, service, *rpcTimeout, *chainID))
+	reg.MustRegister(collector.NewBuildInfoCollector(""))
+	reg.MustRegister(collector.NewNetworkCollector(service, *rpcTimeout, *chainID))
+	reg.MustRegister(collector.NewMempoolOperationsCollectorCollector(service, *chainID, []string{
+		"applied",
+		"branch_refused",
+		"refused",
+		"branch_delayed",
+	}))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 

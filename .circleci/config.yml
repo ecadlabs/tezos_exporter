@@ -4,18 +4,19 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/ecadlabs/tezos_exporter
     docker:
-      - image: circleci/golang:1.11
+      - image: circleci/golang:1.12
+    working_directory: ~/tezos_exporter
 
     steps:
     - checkout
+    - run: go get -d ./...
     - run: go build
 
   docker_hub_release_tags:
     docker:
-      - image: circleci/golang:1.11
-    working_directory: /go/src/github.com/ecadlabs/tezos_exporter
+      - image: circleci/golang:1.12
+    working_directory: ~/tezos_exporter
 
     steps:
     - checkout
