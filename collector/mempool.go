@@ -4,16 +4,16 @@ import (
 	"context"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/ecadlabs/go-tezos"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // MempoolOperationsCollector collects mempool operations count
 type MempoolOperationsCollector struct {
 	counter        *prometheus.CounterVec
-	rpcTotalHist   prometheus.Histogram
+	rpcTotalHist   prometheus.ObserverVec
 	rpcConnectHist prometheus.Histogram
 
 	service *tezos.Service
@@ -49,31 +49,48 @@ func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID stri
 	c := &MempoolOperationsCollector{
 		counter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "tezos_node_mempool_operations_total",
-				Help: "The total number of mempool operations.",
+				Namespace: "tezos_node",
+				Subsystem: "mempool",
+				Name:      "operations_total",
+				Help:      "The total number of mempool operations.",
 			},
 			[]string{"pool", "proto", "kind"},
 		),
-		rpcTotalHist: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "tezos_rpc_mempool_monitor_connection_total_duration_seconds",
-			Help:    "The total life time of the mempool monitir RPC connection.",
-			Buckets: prometheus.ExponentialBuckets(0.25, 2, 12),
-		}),
-		rpcConnectHist: prometheus.NewHistogram(prometheus.HistogramOpts{
-			Name:    "tezos_rpc_mempool_monitor_connection_connect_duration_seconds",
-			Help:    "Mempool monitor (re)connection duration (time until HTTP header arrives).",
-			Buckets: prometheus.ExponentialBuckets(0.25, 2, 12),
-		}),
+		rpcTotalHist: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Namespace: "tezos_rpc",
+				Subsystem: "mempool",
+				Name:      "monitor_connection_total_duration_seconds",
+				Help:      "The total life time of the mempool monitor RPC connection.",
+				Buckets:   prometheus.ExponentialBuckets(0.25, 2, 12),
+			},
+			[]string{},
+		),
+		rpcConnectHist: prometheus.NewHistogram(
+			prometheus.HistogramOpts{
+				Namespace: "tezos_rpc",
+				Subsystem: "mempool",
+				Name:      "monitor_connection_connect_duration_seconds",
+				Help:      "Mempool monitor (re)connection duration (time until HTTP header arrives).",
+				Buckets:   prometheus.ExponentialBuckets(0.25, 2, 12),
+			},
+		),
 		chainID: chainID,
 	}
 
+	it := promhttp.InstrumentTrace{
+		GotConn: func(t float64) {
+			c.rpcConnectHist.Observe(t)
+		},
+	}
+
 	client := *service.Client
-	client.RPCStatusCallback = func(req *http.Request, status int, duration time.Duration, err error) {
-		c.rpcTotalHist.Observe(float64(duration / time.Second))
+	if client.Transport == nil {
+		client.Transport = http.DefaultTransport
 	}
-	client.RPCHeaderCallback = func(req *http.Request, resp *http.Response, duration time.Duration) {
-		c.rpcConnectHist.Observe(float64(duration / time.Second))
-	}
+
+	client.Transport = promhttp.InstrumentRoundTripperDuration(c.rpcTotalHist, client.Transport)
+	client.Transport = promhttp.InstrumentRoundTripperTrace(&it, client.Transport)
 
 	srv := *service
 	srv.Client = &client
