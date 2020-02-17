@@ -25,7 +25,7 @@ func main() {
 	w := log.NewSyncWriter(os.Stderr)
 	logger := log.NewLogfmtLogger(w)
 
-	client, err := tezos.NewRPCClient(nil, *tezosAddr)
+	client, err := tezos.NewRPCClient(*tezosAddr)
 	if err != nil {
 		level.Error(logger).Log("msg", "error initializing Tezos RPC client", "err", err)
 		os.Exit(1)
