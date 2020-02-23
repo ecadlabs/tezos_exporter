@@ -1,6 +1,7 @@
 # Tezos Exporter for Prometheus (WIP)
 
-[![CircleCI](https://circleci.com/gh/ecadlabs/tezos_exporter.svg?style=svg)](https://circleci.com/gh/ecadlabs/tezos_exporter)
+![Build](https://github.com/ecadlabs/tezos_exporter/workflows/Build/badge.svg)
+![Release Docker image](https://github.com/ecadlabs/tezos_exporter/workflows/Release%20Docker%20image/badge.svg)
 
 `tezos_exporter` produces metrics by querying the RPC methods of a Tezos node.
 
