@@ -39,11 +39,12 @@ func main() {
 	reg.MustRegister(collector.NewBuildInfoCollector(""))
 	reg.MustRegister(collector.NewNetworkCollector(service, *rpcTimeout, *chainID))
 	reg.MustRegister(collector.NewMempoolOperationsCollectorCollector(service, *chainID, []string{
-		"applied",
-		"branch_refused",
-		"refused",
-		"branch_delayed",
+		"applied=true",
+		"branch_refused=true",
+		"refused=true",
+		"branch_delayed=true",
 	}))
+
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 
