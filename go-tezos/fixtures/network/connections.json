@@ -1,0 +1,52 @@
+[
+  {
+    "incoming": false,
+    "peer_id": "idt5qvkLiJ15rb6yJU1bjpGmdyYnPJ",
+    "id_point": {
+      "addr": "::ffff:34.253.64.43",
+      "port": 9732
+    },
+    "remote_socket_port": 9732,
+    "versions": [
+      {
+        "name": "TEZOS_ALPHANET_2018-07-31T16:22:39Z",
+        "major": 0,
+        "minor": 0
+      }
+    ],
+    "private": false,
+    "local_metadata": {
+      "disable_mempool": false,
+      "private_node": false
+    },
+    "remote_metadata": {
+      "disable_mempool": false,
+      "private_node": false
+    }
+  },
+  {
+    "incoming": true,
+    "peer_id": "ids8VJTHEuyND6B8ahGgXPAJ3BDp1c",
+    "id_point": {
+      "addr": "::ffff:176.31.255.202",
+      "port": 9732
+    },
+    "remote_socket_port": 9732,
+    "versions": [
+      {
+        "name": "TEZOS_ALPHANET_2018-07-31T16:22:39Z",
+        "major": 0,
+        "minor": 0
+      }
+    ],
+    "private": true,
+    "local_metadata": {
+      "disable_mempool": true,
+      "private_node": true
+    },
+    "remote_metadata": {
+      "disable_mempool": true,
+      "private_node": true
+    }
+  }
+]
