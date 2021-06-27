@@ -19,6 +19,9 @@ func main() {
 	tezosAddr := flag.String("tezos-node-url", "http://localhost:8732", "URL of Tezos node to monitor.")
 	chainID := flag.String("chain-id", "main", "ID of chain about which to report chain-related stats.")
 	rpcTimeout := flag.Duration("rpc-timeout", 10*time.Second, "Timeout for connecting to tezos RPCs")
+	noHealthEp := flag.Bool("disable-health-endpoint", false, "Disable /health endpoint")
+	isBootstrappedPollInterval := flag.Duration("bootstraped-poll-interval", 10*time.Second, "is_bootstrapped endpoint polling interval")
+	isBootstrappedThreshold := flag.Int("bootstraped-threshold", 3, "Report is_bootstrapped change after N samples of the same value")
 
 	flag.Parse()
 
@@ -46,6 +49,9 @@ func main() {
 	}))
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	if !*noHealthEp {
+		http.Handle("/health", NewHealthHandler(service, *chainID, *isBootstrappedPollInterval, *isBootstrappedThreshold))
+	}
 
 	level.Info(logger).Log("msg", "tezos_exporter starting...", "address", metricsAddr)
 
