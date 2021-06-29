@@ -19,10 +19,9 @@ type MempoolOperationsCollector struct {
 	service *tezos.Service
 	chainID string
 	wg      sync.WaitGroup
-	cancel  context.CancelFunc
 }
 
-func (m *MempoolOperationsCollector) listener(ctx context.Context, pool string) {
+func (m *MempoolOperationsCollector) listener(pool string) {
 	ch := make(chan []*tezos.Operation, 100)
 	defer close(ch)
 
@@ -37,7 +36,7 @@ func (m *MempoolOperationsCollector) listener(ctx context.Context, pool string) 
 	}()
 
 	for {
-		err := m.service.MonitorMempoolOperations(ctx, m.chainID, pool, ch)
+		err := m.service.MonitorMempoolOperations(context.Background(), m.chainID, pool, ch)
 		if err == context.Canceled {
 			return
 		}
@@ -96,12 +95,9 @@ func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID stri
 	srv.Client = &client
 	c.service = &srv
 
-	ctx, cancel := context.WithCancel(context.Background())
-	c.cancel = cancel
-
 	for _, p := range pools {
 		c.wg.Add(1)
-		go c.listener(ctx, p)
+		go c.listener(p)
 	}
 
 	return c
@@ -119,22 +115,4 @@ func (m *MempoolOperationsCollector) Collect(ch chan<- prometheus.Metric) {
 	m.counter.Collect(ch)
 	m.rpcTotalHist.Collect(ch)
 	m.rpcConnectHist.Collect(ch)
-}
-
-// Shutdown stops all listeners
-func (m *MempoolOperationsCollector) Shutdown(ctx context.Context) error {
-	m.cancel()
-
-	sem := make(chan struct{})
-	go func() {
-		m.wg.Wait()
-		close(sem)
-	}()
-
-	select {
-	case <-sem:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }

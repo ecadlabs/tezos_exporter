@@ -25,8 +25,7 @@ func main() {
 
 	flag.Parse()
 
-	w := log.NewSyncWriter(os.Stderr)
-	logger := log.NewLogfmtLogger(w)
+	logger := log.NewLogfmtLogger(log.NewSyncWriter(os.Stderr))
 
 	client, err := tezos.NewRPCClient(*tezosAddr)
 	if err != nil {
@@ -40,7 +39,7 @@ func main() {
 	reg.MustRegister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	reg.MustRegister(prometheus.NewGoCollector())
 	reg.MustRegister(collector.NewBuildInfoCollector(""))
-	reg.MustRegister(collector.NewNetworkCollector(service, *rpcTimeout, *chainID))
+	reg.MustRegister(collector.NewNetworkCollector(service, *rpcTimeout, *chainID, logger))
 	reg.MustRegister(collector.NewMempoolOperationsCollectorCollector(service, *chainID, []string{
 		"applied",
 		"branch_refused",
@@ -50,7 +49,7 @@ func main() {
 
 	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
 	if !*noHealthEp {
-		http.Handle("/health", NewHealthHandler(service, *chainID, *isBootstrappedPollInterval, *isBootstrappedThreshold))
+		http.Handle("/health", NewHealthHandler(service, *chainID, *isBootstrappedPollInterval, *isBootstrappedThreshold, logger))
 	}
 
 	level.Info(logger).Log("msg", "tezos_exporter starting...", "address", metricsAddr)
