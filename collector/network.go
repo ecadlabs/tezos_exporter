@@ -7,10 +7,9 @@ import (
 	"time"
 
 	tezos "github.com/ecadlabs/tezos_exporter/go-tezos"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 )
 
 const bootstrappedTimeout = 5 * time.Second
@@ -60,11 +59,10 @@ type NetworkCollector struct {
 	timeout      time.Duration
 	chainID      string
 	bootstrapped prometheus.Gauge
-	logger       log.Logger
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
-func NewNetworkCollector(service *tezos.Service, timeout time.Duration, chainID string, logger log.Logger) *NetworkCollector {
+func NewNetworkCollector(service *tezos.Service, timeout time.Duration, chainID string) *NetworkCollector {
 	c := &NetworkCollector{
 		service: service,
 		timeout: timeout,
@@ -74,7 +72,6 @@ func NewNetworkCollector(service *tezos.Service, timeout time.Duration, chainID 
 			Name:      "bootstrapped",
 			Help:      "Returns 1 if the node has synchronized its chain with a few peers.",
 		}),
-		logger: logger,
 	}
 
 	go c.bootstrappedPollLoop()
@@ -119,7 +116,7 @@ func (c *NetworkCollector) bootstrappedPollLoop() {
 		ok, err := c.getBootstrapped()
 		var v float64
 		if err != nil {
-			level.Warn(c.logger).Log(err)
+			log.WithError(err).Error("error getting bootstrap status")
 		} else {
 			if ok {
 				v = 1
@@ -239,7 +236,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	var val float64
 	if err != nil {
-		level.Warn(c.logger).Log(err)
+		log.WithError(err).Error("error getting network stats")
 		val = 1
 	}
 	ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, path)
@@ -253,7 +250,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	if err != nil {
-		level.Warn(c.logger).Log(err)
+		log.WithError(err).Error("error getting connections stats")
 		val = 1
 	} else {
 		val = 0
@@ -269,7 +266,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	if err != nil {
-		level.Warn(c.logger).Log(err)
+		log.WithError(err).Error("error getting peer stats")
 		val = 1
 	} else {
 		val = 0
@@ -285,7 +282,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	if err != nil {
-		level.Warn(c.logger).Log(err)
+		log.WithError(err).Error("error getting point stats")
 		val = 1
 	} else {
 		val = 0

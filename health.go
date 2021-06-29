@@ -7,8 +7,7 @@ import (
 	"time"
 
 	tezos "github.com/ecadlabs/tezos_exporter/go-tezos"
-	"github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	log "github.com/sirupsen/logrus"
 )
 
 type HealthHandler struct {
@@ -18,13 +17,12 @@ type HealthHandler struct {
 	threshold int
 	tcount    int
 	ok        bool
-	logger    log.Logger
 }
 
 func (h *HealthHandler) poll() {
 	status, err := h.service.GetBootstrapped(context.Background(), h.chainID)
 	if err != nil {
-		level.Warn(h.logger).Log(err)
+		log.WithError(err).Error("error getting bootstrap status")
 		h.ok = false
 	} else {
 		h.ok = status.Bootstrapped && status.SyncState == tezos.SyncStateSynced
@@ -35,7 +33,7 @@ func (h *HealthHandler) poll() {
 	for range tick {
 		status, err := h.service.GetBootstrapped(context.Background(), h.chainID)
 		if err != nil {
-			level.Warn(h.logger).Log(err)
+			log.WithError(err).Error("error getting bootstrap status")
 			h.ok = false
 			h.tcount = h.threshold
 			continue
@@ -73,13 +71,12 @@ func (h *HealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&res)
 }
 
-func NewHealthHandler(service *tezos.Service, chainID string, interval time.Duration, threshold int, logger log.Logger) *HealthHandler {
+func NewHealthHandler(service *tezos.Service, chainID string, interval time.Duration, threshold int) *HealthHandler {
 	h := HealthHandler{
 		service:   service,
 		interval:  interval,
 		threshold: threshold,
 		chainID:   chainID,
-		logger:    logger,
 	}
 	go h.poll()
 	return &h

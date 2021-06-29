@@ -3,11 +3,12 @@ package collector
 import (
 	"context"
 	"net/http"
-	"sync"
+	"time"
 
 	tezos "github.com/ecadlabs/tezos_exporter/go-tezos"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 )
 
 // MempoolOperationsCollector collects mempool operations count
@@ -15,10 +16,9 @@ type MempoolOperationsCollector struct {
 	counter        *prometheus.CounterVec
 	rpcTotalHist   prometheus.ObserverVec
 	rpcConnectHist prometheus.Histogram
-
-	service *tezos.Service
-	chainID string
-	wg      sync.WaitGroup
+	service        *tezos.Service
+	chainID        string
+	interval       time.Duration
 }
 
 func (m *MempoolOperationsCollector) listener(pool string) {
@@ -37,14 +37,15 @@ func (m *MempoolOperationsCollector) listener(pool string) {
 
 	for {
 		err := m.service.MonitorMempoolOperations(context.Background(), m.chainID, pool, ch)
-		if err == context.Canceled {
-			return
+		if err != nil {
+			log.WithError(err).WithField("pool", pool).Error("error monitoring mempool operations")
+			<-time.After(m.interval)
 		}
 	}
 }
 
 // NewMempoolOperationsCollectorCollector returns new mempool collector for given pools like "applied", "refused" etc.
-func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID string, pools []string) *MempoolOperationsCollector {
+func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID string, pools []string, interval time.Duration) *MempoolOperationsCollector {
 	c := &MempoolOperationsCollector{
 		counter: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -74,7 +75,8 @@ func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID stri
 				Buckets:   prometheus.ExponentialBuckets(0.25, 2, 12),
 			},
 		),
-		chainID: chainID,
+		chainID:  chainID,
+		interval: interval,
 	}
 
 	it := promhttp.InstrumentTrace{
@@ -96,7 +98,7 @@ func NewMempoolOperationsCollectorCollector(service *tezos.Service, chainID stri
 	c.service = &srv
 
 	for _, p := range pools {
-		c.wg.Add(1)
+		log.WithField("pool", p).Info("starting mempool monitor")
 		go c.listener(p)
 	}
 
