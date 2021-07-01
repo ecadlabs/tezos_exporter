@@ -53,6 +53,8 @@ opLoop:
 		switch tmp.Kind {
 		case "endorsement":
 			(*e)[i] = &EndorsementOperationElem{}
+		case "endorsement_with_slot":
+			(*e)[i] = &EndorsementWithSlotOperationElem{}
 		case "transaction":
 			(*e)[i] = &TransactionOperationElem{}
 		case "ballot":
@@ -91,6 +93,12 @@ type EndorsementOperationElem struct {
 	GenericOperationElem `yaml:",inline"`
 	Level                int                          `json:"level" yaml:"level"`
 	Metadata             EndorsementOperationMetadata `json:"metadata" yaml:"metadata"`
+}
+
+// EndorsementOperationElem represents an endorsement_with_slot operation that was introduced in Edo
+type EndorsementWithSlotOperationElem struct {
+	GenericOperationElem `yaml:",inline"`
+	Level                int `json:"level" yaml:"level"`
 }
 
 // BalanceUpdates implements BalanceUpdateOperation
