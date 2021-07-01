@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "incoming_request",
+    "timestamp": "2018-11-13T15:35:17Z",
+    "addr": "::ffff:13.81.43.51",
+    "port": 9732
+  },
+  {
+    "kind": "connection_established",
+    "timestamp": "2018-11-13T15:35:19Z",
+    "addr": "::ffff:13.81.43.51",
+    "port": 9732
+  },
+  {
+    "kind": "external_disconnection",
+    "timestamp": "2018-11-13T18:02:51Z",
+    "addr": "::ffff:13.81.43.51",
+    "port": 9732
+  },
+  {
+    "kind": "incoming_request",
+    "timestamp": "2018-11-13T20:56:14Z",
+    "addr": "::ffff:13.81.43.51",
+    "port": 9732
+  },
+  {
+    "kind": "connection_established",
+    "timestamp": "2018-11-13T20:56:15Z",
+    "addr": "::ffff:13.81.43.51",
+    "port": 9732
+  }
+]

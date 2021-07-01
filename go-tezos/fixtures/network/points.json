@@ -1,0 +1,44 @@
+[
+  [
+    "73.247.92.150:9732",
+    {
+      "trusted": false,
+      "greylisted_until": "2018-11-14T19:01:28Z",
+      "state": {
+        "event_kind": "disconnected"
+      },
+      "last_failed_connection": "2018-11-14T19:01:16Z",
+      "last_miss": "2018-11-14T19:01:16Z"
+    }
+  ],
+  [
+    "40.119.159.28:9732",
+    {
+      "trusted": false,
+      "greylisted_until": "2018-11-14T16:24:57Z",
+      "state": {
+        "event_kind": "running",
+        "p2p_peer_id": "ids496Ey2BKHVJYZdsk72XCwbZteTj"
+      },
+      "p2p_peer_id": "ids496Ey2BKHVJYZdsk72XCwbZteTj",
+      "last_failed_connection": "2018-11-14T11:47:13Z",
+      "last_rejected_connection": [
+        "ids496Ey2BKHVJYZdsk72XCwbZteTj",
+        "2018-11-14T12:03:11Z"
+      ],
+      "last_established_connection": [
+        "ids496Ey2BKHVJYZdsk72XCwbZteTj",
+        "2018-11-14T16:48:56Z"
+      ],
+      "last_disconnection": [
+        "ids496Ey2BKHVJYZdsk72XCwbZteTj",
+        "2018-11-14T16:23:57Z"
+      ],
+      "last_seen": [
+        "ids496Ey2BKHVJYZdsk72XCwbZteTj",
+        "2018-11-14T16:48:56Z"
+      ],
+      "last_miss": "2018-11-14T16:23:57Z"
+    }
+  ]
+]

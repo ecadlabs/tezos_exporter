@@ -1,0 +1,3 @@
+[{"kind":{"event_kind":"outgoing_request"},"timestamp":"2018-11-15T18:00:39Z"},{"kind":{"event_kind":"request_rejected"},"timestamp":"2018-11-15T18:00:49Z"}]
+[{"kind":{"event_kind":"outgoing_request"},"timestamp":"2018-11-15T18:16:18Z"}]
+[{"kind":{"event_kind":"request_rejected"},"timestamp":"2018-11-15T18:16:28Z"}]

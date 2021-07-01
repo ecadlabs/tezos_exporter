@@ -6,9 +6,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ecadlabs/go-tezos"
+	tezos "github.com/ecadlabs/tezos_exporter/go-tezos"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 )
 
 const bootstrappedTimeout = 5 * time.Second
@@ -58,8 +59,6 @@ type NetworkCollector struct {
 	timeout      time.Duration
 	chainID      string
 	bootstrapped prometheus.Gauge
-	sem          chan struct{}
-	cancel       context.CancelFunc
 }
 
 // NewNetworkCollector returns a new NetworkCollector.
@@ -73,18 +72,14 @@ func NewNetworkCollector(service *tezos.Service, timeout time.Duration, chainID 
 			Name:      "bootstrapped",
 			Help:      "Returns 1 if the node has synchronized its chain with a few peers.",
 		}),
-		sem: make(chan struct{}),
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	c.cancel = cancel
-	go c.bootstrappedPollLoop(ctx)
-
+	go c.bootstrappedPollLoop()
 	return c
 }
 
-func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
-	ctx, cancel := context.WithTimeout(ctx, bootstrappedTimeout)
+func (c *NetworkCollector) getBootstrapped() (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), bootstrappedTimeout)
 	defer cancel()
 
 	ch := make(chan *tezos.BootstrappedBlock, 10)
@@ -114,27 +109,20 @@ func (c *NetworkCollector) getBootstrapped(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-func (c *NetworkCollector) bootstrappedPollLoop(ctx context.Context) {
-	defer close(c.sem)
+func (c *NetworkCollector) bootstrappedPollLoop() {
 	t := time.NewTicker(bootstrappedPollInterval)
-	defer t.Stop()
 
-	for {
-		ok, err := c.getBootstrapped(ctx)
-		if err == context.Canceled {
-			return
-		}
+	for range t.C {
+		ok, err := c.getBootstrapped()
 		var v float64
-		if ok {
-			v = 1
+		if err != nil {
+			log.WithError(err).Error("error getting bootstrap status")
+		} else {
+			if ok {
+				v = 1
+			}
 		}
 		c.bootstrapped.Set(v)
-
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-		}
 	}
 }
 
@@ -150,11 +138,11 @@ func getConnStats(ctx context.Context, service *tezos.Service) (map[string]map[s
 	}
 
 	connStats := map[string]map[string]int{
-		"incoming": map[string]int{
+		"incoming": {
 			"false": 0,
 			"true":  0,
 		},
-		"outgoing": map[string]int{
+		"outgoing": {
 			"false": 0,
 			"true":  0,
 		},
@@ -183,8 +171,8 @@ func getPointStats(ctx context.Context, service *tezos.Service) (map[string]map[
 	}
 
 	pointStats := map[string]map[string]int{
-		"false": map[string]int{},
-		"true":  map[string]int{},
+		"false": {},
+		"true":  {},
 	}
 
 	for _, point := range points {
@@ -205,8 +193,8 @@ func getPeerStats(ctx context.Context, service *tezos.Service) (map[string]map[s
 	}
 
 	peerStats := map[string]map[string]int{
-		"false": map[string]int{},
-		"true":  map[string]int{},
+		"false": {},
+		"true":  {},
 	}
 
 	for _, peer := range peers {
@@ -248,6 +236,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	var val float64
 	if err != nil {
+		log.WithError(err).Error("error getting network stats")
 		val = 1
 	}
 	ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, path)
@@ -261,6 +250,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	if err != nil {
+		log.WithError(err).Error("error getting connections stats")
 		val = 1
 	} else {
 		val = 0
@@ -276,6 +266,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	if err != nil {
+		log.WithError(err).Error("error getting peer stats")
 		val = 1
 	} else {
 		val = 0
@@ -291,6 +282,7 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	if err != nil {
+		log.WithError(err).Error("error getting point stats")
 		val = 1
 	} else {
 		val = 0
@@ -298,22 +290,4 @@ func (c *NetworkCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(rpcFailedDesc, prometheus.GaugeValue, val, path)
 
 	c.bootstrapped.Collect(ch)
-}
-
-// Shutdown stops all listeners
-func (c *NetworkCollector) Shutdown(ctx context.Context) error {
-	c.cancel()
-
-	sem := make(chan struct{})
-	go func() {
-		<-c.sem
-		close(sem)
-	}()
-
-	select {
-	case <-sem:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
 }

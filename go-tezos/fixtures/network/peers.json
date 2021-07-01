@@ -1,0 +1,101 @@
+[
+  [
+    "idrnHcGMrFxiYsmxf5Cqd6NhUTUU8X",
+    {
+      "score": 0,
+      "trusted": false,
+      "conn_metadata": {
+        "disable_mempool": false,
+        "private_node": false
+      },
+      "state": "running",
+      "reachable_at": {
+        "addr": "::ffff:45.79.146.133",
+        "port": 39732
+      },
+      "stat": {
+        "total_sent": "4908012",
+        "total_recv": "14560268",
+        "current_inflow": 66,
+        "current_outflow": 177
+      },
+      "last_rejected_connection": [
+        {
+          "addr": "::ffff:45.79.146.133",
+          "port": 39732
+        },
+        "2018-11-13T15:22:41Z"
+      ],
+      "last_established_connection": [
+        {
+          "addr": "::ffff:45.79.146.133",
+          "port": 39732
+        },
+        "2018-11-13T20:56:14Z"
+      ],
+      "last_disconnection": [
+        {
+          "addr": "::ffff:45.79.146.133",
+          "port": 39732
+        },
+        "2018-11-13T18:04:12Z"
+      ],
+      "last_seen": [
+        {
+          "addr": "::ffff:45.79.146.133",
+          "port": 39732
+        },
+        "2018-11-13T20:56:14Z"
+      ],
+      "last_miss": [
+        {
+          "addr": "::ffff:45.79.146.133",
+          "port": 39732
+        },
+        "2018-11-13T18:04:12Z"
+      ]
+    }
+  ],
+  [
+    "idsXeq1zboupwXXDdDDiWhBjimeJe3",
+    {
+      "score": 0,
+      "trusted": false,
+      "state": "disconnected",
+      "stat": {
+        "total_sent": "0",
+        "total_recv": "0",
+        "current_inflow": 0,
+        "current_outflow": 0
+      },
+      "last_established_connection": [
+        {
+          "addr": "::ffff:104.155.17.238",
+          "port": 9732
+        },
+        "2018-11-13T17:57:18Z"
+      ],
+      "last_disconnection": [
+        {
+          "addr": "::ffff:104.155.17.238",
+          "port": 9732
+        },
+        "2018-11-13T19:48:57Z"
+      ],
+      "last_seen": [
+        {
+          "addr": "::ffff:104.155.17.238",
+          "port": 9732
+        },
+        "2018-11-13T19:48:57Z"
+      ],
+      "last_miss": [
+        {
+          "addr": "::ffff:104.155.17.238",
+          "port": 9732
+        },
+        "2018-11-13T19:48:57Z"
+      ]
+    }
+  ]
+]

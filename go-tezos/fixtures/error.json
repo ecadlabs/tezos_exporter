@@ -1,0 +1,19 @@
+[
+  {
+    "kind": "permanent",
+    "id": "proto.002-PsYLVpVv.context.storage_error",
+    "missing_key": [
+      "contracts",
+      "index",
+      "ed25519",
+      "8f",
+      "b5",
+      "ce",
+      "a6",
+      "2d",
+      "147c696afd9a93dbce962f4c8a9c91",
+      "balance"
+    ],
+    "function": "get"
+  }
+]

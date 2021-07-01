@@ -1,0 +1,22 @@
+[
+  {
+    "kind": {
+      "event_kind": "outgoing_request"
+    },
+    "timestamp": "2018-11-15T17:56:18Z"
+  },
+  {
+    "kind": {
+      "event_kind": "accepting_request",
+      "p2p_peer_id": "idrBJarh4t32gN9s52kxMWmeSi76Jk"
+    },
+    "timestamp": "2018-11-15T17:56:19Z"
+  },
+  {
+    "kind": {
+      "event_kind": "rejecting_request",
+      "p2p_peer_id": "idrBJarh4t32gN9s52kxMWmeSi76Jk"
+    },
+    "timestamp": "2018-11-15T17:56:19Z"
+  }
+]

@@ -1,0 +1,47 @@
+{
+  "score": 0,
+  "trusted": false,
+  "conn_metadata": {
+    "disable_mempool": false,
+    "private_node": false
+  },
+  "state": "running",
+  "reachable_at": {
+    "addr": "::ffff:104.248.233.63",
+    "port": 9732
+  },
+  "stat": {
+    "total_sent": "1196571",
+    "total_recv": "1302211",
+    "current_inflow": 0,
+    "current_outflow": 1
+  },
+  "last_established_connection": [
+    {
+      "addr": "::ffff:104.248.233.63",
+      "port": 9732
+    },
+    "2018-11-14T11:47:07Z"
+  ],
+  "last_disconnection": [
+    {
+      "addr": "::ffff:104.248.233.63",
+      "port": 9732
+    },
+    "2018-11-14T11:44:57Z"
+  ],
+  "last_seen": [
+    {
+      "addr": "::ffff:104.248.233.63",
+      "port": 9732
+    },
+    "2018-11-14T11:47:07Z"
+  ],
+  "last_miss": [
+    {
+      "addr": "::ffff:104.248.233.63",
+      "port": 9732
+    },
+    "2018-11-14T11:44:57Z"
+  ]
+}
