@@ -1,0 +1,86 @@
+# This is an example .goreleaser.yml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm
+      - arm64
+dockers:
+  - image_templates:
+    - 'ecadlabs/tezos_exporter:{{ .Tag }}-amd64'
+    - 'ecadlabs/tezos_exporter:latest-amd64'
+    - 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}-amd64'
+    - 'ghcr.io/ecadlabs/tezos_exporter:latest-amd64'
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.name={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source={{.GitURL}}"
+    - "--platform=linux/amd64"
+  - image_templates:
+    - 'ecadlabs/tezos_exporter:{{ .Tag }}-arm64'
+    - 'ecadlabs/tezos_exporter:latest-arm64'
+    - 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}-arm64'
+    - 'ghcr.io/ecadlabs/tezos_exporter:latest-arm64'
+    dockerfile: Dockerfile
+    use: buildx
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.name={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source={{.GitURL}}"
+    - "--platform=linux/arm64"
+    goarch: arm64
+docker_manifests:
+  - name_template: 'ecadlabs/tezos_exporter:{{ .Tag }}'
+    image_templates:
+    - 'ecadlabs/tezos_exporter:{{ .Tag }}-amd64'
+    - 'ecadlabs/tezos_exporter:{{ .Tag }}-arm64'
+  - name_template: 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}'
+    image_templates:
+    - 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}-amd64'
+    - 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}-arm64'
+  - name_template: 'ecadlabs/tezos_exporter:latest'
+    image_templates:
+    - 'ecadlabs/tezos_exporter:{{ .Tag }}-amd64'
+    - 'ecadlabs/tezos_exporter:{{ .Tag }}-arm64'
+  - name_template: 'ghcr.io/ecadlabs/tezos_exporter:latest'
+    image_templates:
+    - 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}-amd64'
+    - 'ghcr.io/ecadlabs/tezos_exporter:{{ .Tag }}-arm64'
+
+
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      amd64: x86_64
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ .Tag }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
